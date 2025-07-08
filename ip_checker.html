@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP 地址查询</title>
+    <!-- 引入 Tailwind CSS 以便快速美化页面 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Telegram Web App 的 JS 文件 -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* 自定义一些基础样式 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color-scheme: light dark; /* 支持亮色和暗色模式 */
+        }
+        .info-card {
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--tg-theme-hint-color, #e5e7eb);
+        }
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: var(--tg-theme-hint-color, #6b7280);
+        }
+        .info-value {
+            text-align: right;
+            font-weight: 500;
+        }
+        .loader {
+            border: 4px solid var(--tg-theme-hint-color, #f3f3f3);
+            border-radius: 50%;
+            border-top: 4px solid var(--tg-theme-button-color, #3b82f6);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4" id="main-body">
+
+    <div id="loader-container" class="flex justify-center items-center h-screen">
+        <div class="text-center">
+            <div class="loader mx-auto"></div>
+            <p class="mt-4 text-lg font-semibold" style="color: var(--tg-theme-text-color, #000000);">正在获取您的IP信息...</p>
+        </div>
+    </div>
+
+    <div id="info-container" class="hidden">
+        <div class="info-card">
+            <div class="text-center mb-4">
+                <h1 class="text-2xl font-bold">您的公网IP信息</h1>
+            </div>
+            <div id="ip-details">
+                <!-- IP信息将动态插入此处 -->
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <p class="text-xs" style="color: var(--tg-theme-hint-color, #6b7280);">由 IP-API.com 提供数据</p>
+        </div>
+    </div>
+
+    <div id="error-container" class="hidden">
+         <div class="info-card text-center">
+            <h1 class="text-2xl font-bold text-red-500">查询失败</h1>
+            <p id="error-message" class="mt-2" style="color: var(--tg-theme-text-color, #000000);"></p>
+        </div>
+    </div>
+
+    <script>
+        // 初始化 Telegram Web App
+        Telegram.WebApp.ready();
+        
+        // 动态设置背景色以匹配 Telegram 主题
+        const body = document.getElementById('main-body');
+        body.style.backgroundColor = window.Telegram.WebApp.themeParams.secondary_bg_color || '#f3f4f6';
+
+
+        // 页面加载后执行查询
+        window.addEventListener('load', fetchIPInfo);
+
+        async function fetchIPInfo() {
+            const loader = document.getElementById('loader-container');
+            const infoContainer = document.getElementById('info-container');
+            const errorContainer = document.getElementById('error-container');
+            
+            try {
+                const response = await fetch('http://ip-api.com/json/?lang=zh-CN');
+                if (!response.ok) {
+                    throw new Error(`HTTP 错误! 状态: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    displayInfo(data);
+                    loader.classList.add('hidden');
+                    infoContainer.classList.remove('hidden');
+                } else {
+                    throw new Error(data.message || 'API返回查询失败');
+                }
+            } catch (error) {
+                displayError(error.message);
+                loader.classList.add('hidden');
+                errorContainer.classList.remove('hidden');
+            }
+        }
+
+        function displayInfo(data) {
+            const detailsContainer = document.getElementById('ip-details');
+            const infoMap = {
+                'IP 地址': data.query,
+                '国家': data.country,
+                '地区': data.regionName,
+                '城市': data.city,
+                '邮政编码': data.zip,
+                'ISP': data.isp,
+                '组织': data.org,
+                'AS编号': data.as
+            };
+
+            let html = '';
+            for (const [label, value] of Object.entries(infoMap)) {
+                if (value) { // 只显示有值的条目
+                    html += `
+                        <div class="info-item">
+                            <span class="info-label">${label}</span>
+                            <span class="info-value">${value}</span>
+                        </div>
+                    `;
+                }
+            }
+            detailsContainer.innerHTML = html;
+        }
+
+        function displayError(message) {
+            const errorMessageElement = document.getElementById('error-message');
+            errorMessageElement.textContent = `无法获取IP信息。错误详情: ${message}`;
+        }
+    </script>
+</body>
+</html>
